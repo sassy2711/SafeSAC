@@ -69,7 +69,7 @@ target_entropy = -action_dim
 # Beta Curriculum Hyperparameters
 BETA_PHASE1 = 50  # Episodes with beta = 0
 BETA_PHASE2 = 100  # Episodes for linear ramp up from 0 to 1
-BETA_TARGET = 0.7  # Final beta value
+BETA_TARGET = 0.2  # Final beta value
 
 # =========================
 # Optimizers
@@ -214,6 +214,30 @@ def update(ep):
 
     return stats
 
+def plot_trajectory(traj, save_path):
+    traj = np.array(traj)
+
+    plt.figure()
+    plt.plot(traj[:, 0], traj[:, 1], marker='o')
+
+    # Start & Goal
+    plt.scatter([0], [0], s=100, label="Start")
+    plt.scatter([4], [4], s=100, label="Goal")
+
+    # Unsafe region (optional but useful)
+    plt.gca().add_patch(
+        plt.Rectangle((1,1), 2, 2, fill=False)
+    )
+
+    plt.title("Training Trajectory")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.grid()
+    plt.legend()
+
+    plt.savefig(save_path)
+    plt.close()
+
 # =========================
 # Training
 # =========================
@@ -227,6 +251,7 @@ def train():
 
     for ep in range(num_episodes):
         s = env.reset()
+        trajectory = [(s * 4.0).copy()]
         total_reward = 0
         violation_count = 0
         episode_actions = []
@@ -245,6 +270,7 @@ def train():
 
             a_np = a.squeeze(0).cpu().numpy()
             s_next, r, done, _ = env.step(a_np)
+            trajectory.append((s_next * 4.0).copy())
 
             if is_unsafe(s_next * 4.0):
                 violation_count += 1
@@ -321,6 +347,8 @@ def train():
             f"KL:{avg(losses['kl_mean']):6.3f} | "
             f"βKL:{avg(losses['beta_kl']):6.3f}"
         )
+        if ep % 50 == 0:
+            plot_trajectory(trajectory, f"trajectory_ep_{ep}.png")
 
     # =========================
     # SAVE EVERYTHING
